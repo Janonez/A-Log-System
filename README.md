@@ -73,21 +73,177 @@
 
 将一条消息，进行格式化成为指定格式的字符串后，写入到指定位置
 
-本项目实现的是一个多日志器日志系统，主要实现的功能是让程序员能够轻松的将程序运行日志信息
-落地到指定的位置，且支持同步与异步两种方式的日志落地方式。
+本项目实现的是一个多日志器日志系统，主要实现的功能是让程序员能够轻松的将程序运行日志信息落地到指定的位置，且支持同步与异步两种方式的日志落地方式。
 
 ### 5.1 模块划分
 
-日志等级模块：对输出日志的等级进行划分，以便于控制日志的输出，并提供等级枚举转字符串功
-能。
-◦ OFF：关闭
-◦ DEBUG：调试，调试时的关键信息输出。
-◦ INFO：提示，普通的提示型日志信息。
-◦ WARN：警告，不影响运行，但是需要注意一下的日志。
-◦ ERROR：错误，程序运行出现错误的日志
-◦ FATAL：致命，一般是代码异常导致程序无法继续推进运行的日志
-• 日志消息模块：中间存储日志输出所需的各项要素信息
-◦ 时间：描述本条日志的输出时间。
-◦ 线程ID：描述本条日志是哪个线程输出的。
-◦ 日志等级：描述本条日志的等级。
-◦ 日志数据：本条日志的有效载荷数据。
+* 日志等级模块：对输出日志的等级进行划分，以便于控制日志的输出，并提供等级枚举转字符串功能。
+* 日志消息模块：中间存储日志输出所需的各项要素信息
+* 日志消息格式化模块：设置日志输出格式，并提供对日志消息进行格式化功能。
+* 日志消息落地模块：决定了日志的落地方向，可以是标准输出，也可以是日志文件，也可以滚动文件输出....
+* 日志器模块：此模块是对以上几个模块的整合模块，用户通过日志器进行日志的输出，有效降低用户的使用难度。包含有：日志消息落地模块对象，日志消息格式化模块对象，日志输出等级
+* 日志器管理模块：创建的所有日志器进行统一管理。并提供一个默认日志器提供标准输出的日志输出。
+* 异步线程模块：实现对日志的异步输出功能，用户只需要将输出日志任务放入任务池，异步线程负责日志的落地输出功能，以此提供更加高效的非阻塞日志输出。
+
+### 5.2 模块关系图
+
+![1691898718316](image/README/1691898718316.png)
+
+## 6. 代码设计
+
+### 6.1 实用类设计
+
+提前完成一些零碎的功能接口，以便于项目中会用到。
+
+* 获取系统时间
+* 判断文件是否存在
+* 获取文件的所在目录路径
+* 创建目录
+
+```cpp
+/*
+实用工具类的实现：
+    1. 获取系统时间
+    2. 判断文件是否存在
+    3. 获取文件所在目录
+    4. 创建目录
+*/
+#ifndef __M_UTIL__
+#define __M_UTIL__
+
+#include <iostream>
+#include <ctime>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
+namespace Log_System
+{
+    namespace util
+    {
+        class Date
+        {
+        public:
+            // 定义成静态成员接口，不需要实例化就可以通过类名::调用
+            // 1. 获取系统时间
+            static size_t GetTime()
+            {
+                return (size_t)time(nullptr);
+            }
+        };
+        class File
+        {
+        public:
+            // 2. 判断文件是否存在
+            static bool Exists(const std::string &pathname)
+            {
+                // return (access(pathname.c_str(), F_OK) == 0);
+                // 只能保证Linux下使用，移植性差
+                // 使用int stat(const char *path, struct stat *buf);函数查看是否存在
+                // 如果获取状态成功，说明文件存在，反之文件不存在
+                struct stat st;
+                if (stat(pathname.c_str(), &st) < 0)
+                {
+                    return false;
+                }
+                return true;
+            }
+            // 3. 获取文件所在目录
+            static std::string Path(const std::string &pathname)
+            {
+                // ./abc/a.txt
+                size_t pos = pathname.find_last_of("/\\");
+                if (pos == std::string::npos)
+                {
+                    return ".";
+                }
+                // string substr (size_t pos = 0, size_t len = npos) const;
+                // pos 截取位置， len 截取长度 左闭右开，要加上/就得pos+1
+                return pathname.substr(0, pos + 1);
+            }
+            // 4. 创建目录
+            static void CreateDirectory(const std::string &pathname)
+            {
+                // ./acb/bcd/
+                size_t pos = 0, index = 0;
+                while (index < pathname.size())
+                {
+                    // size_t find_first_of (const char* s, size_t pos = 0) const;
+                    // s 要查找的字符中的任意一个，pos，从什么位置查找
+                    pos = pathname.find_first_of("/\\", index);
+                    if (pos == std::string::npos)
+                    {
+                        // 没有找到目录，说明需要创建
+                        mkdir(pathname.c_str(), 0777);
+                    }
+                    std::string parent_dir = pathname.substr(0, pos);
+                    // if (parent_dir == "." || parent_dir == "..")
+                    // {
+                    //     // 当前目录或上一级目录，就再往后寻找
+                    //     index = pos + 1;
+                    //     continue;
+                    // }
+                    if (Exists(parent_dir) == true)
+                    {
+                        // 父级目录存在，就再往后寻找
+                        index = pos + 1;
+                        continue;
+                    }
+                    // 目录不存在，开始创建
+                    mkdir(parent_dir.c_str(), 0777);
+                    index = pos + 1;
+                }
+            }
+        };
+    }
+}
+
+#endif
+```
+
+### 6.2 日志等级类设计
+
+定义出日志系统所包含的所有日志等级，分别为：
+
+1. UNKNOW：未知等级日志
+2. DEBUG：调试等级的日志
+3. INFO：提示等级的日志
+4. WARN：警告等级的日志
+5. ERROR：错误等级的日志
+6. FATAL：致命错误等级的日志
+7. OFF：关闭所有日志输出
+
+每个项目都会设置一个默认的日志输出等级，只有输出的日志等级大于等于默认限制等级的时候才可以进行输出
+
+提供一个接口，将对应等级的枚举，转换为一个对应的字符串，例如DEBUG -->> "DEBUG"
+
+### 6.3 日志消息类设计
+
+日志消息类主要是封装一条完整的日志消息所需的内容，其中包括日志输出时间、日志等级、日志源文件名称、源代码行号、线程ID、具体的日志信息等内容。
+
+### 6.4 日志输出格式化类设计
+
+日志格式化（Formatter）类主要负责格式化日志消息，组织成为指定格式的字符串。其主要包含以下内容：
+
+1. 格式化字符串
+   %d 日期
+   %T 缩进
+   %t 线程id
+   %p 日志级别
+   %c 日志器名称
+   %f 文件名
+   %l 行号
+   %m 日志消息
+   %n 换行
+2. 格式化子项数组
+
+   MsgFormatItem ：表示要从LogMsg中取出有效日志数据
+   LevelFormatItem ：表示要从LogMsg中取出日志等级
+   NameFormatItem ：表示要从LogMsg中取出日志器名称
+   ThreadFormatItem ：表示要从LogMsg中取出线程ID
+   TimeFormatItem ：表示要从LogMsg中取出时间戳并按照指定格式进行格式化
+   CFileFormatItem ：表示要从LogMsg中取出源码所在文件名
+   CLineFormatItem ：表示要从LogMsg中取出源码所在行号
+   TabFormatItem ：表示一个制表符缩进
+   NLineFormatItem ：表示一个换行
+   OtherFormatItem ：表示非格式化的原始字符串

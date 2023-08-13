@@ -4,8 +4,9 @@
     3. 获取文件所在目录
     4. 创建目录
 */
-#ifndef __M_UTIL__
-#define __M_UTIL__
+#ifndef __M_UTIL_H__
+#define __M_UTIL_H__
+// 防止头文件重复包含
 
 #include <iostream>
 #include <ctime>
@@ -15,7 +16,7 @@
 
 namespace Log_System
 {
-    namespace util
+    namespace Util
     {
         class Date
         {
@@ -93,6 +94,5 @@ namespace Log_System
         };
     }
 }
-// test
-// tttt
+
 #endif

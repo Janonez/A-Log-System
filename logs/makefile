@@ -1,5 +1,5 @@
-test:test.cc util.hpp 
-	g++ -g -o $@ $^ -std=c++11
+test:test.cc util.hpp level.hpp message.hpp format.hpp
+	g++ -g -o $@ $^ -std=c++11 -lpthread
 
 .PHONY:clean
 clean:
