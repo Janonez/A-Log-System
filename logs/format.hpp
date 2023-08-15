@@ -6,6 +6,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <memory>
 #include <sstream>
 #include <cassert>
 #include <ctime>
@@ -148,6 +149,7 @@ namespace Log_System
     class Formatter
     {
     public:
+        using ptr = std::shared_ptr<Formatter>;
         Formatter(const std::string &pattern = "[%d{%H:%M:%S}][%t][%c][%f:%l][%p]%T%m%n")
             : _pattern(pattern)
         {
@@ -164,6 +166,7 @@ namespace Log_System
                 item->format(out, msg);// 调用的是FormatItem的format，根据不同的item调用不同的format
             }
         }
+    
         std::string format(const LogMsg &msg)
         {
             std::stringstream ss;

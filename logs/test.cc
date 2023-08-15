@@ -2,6 +2,7 @@
 #include "level.hpp"
 #include "format.hpp"
 #include "sink.hpp"
+#include "logger.hpp"
 
 /*
 扩展一个以时间作为日志文件滚动切换类型的日志落地模块：
@@ -92,10 +93,10 @@ int main()
     // std::cout << Log_System::LogLevel::toString(Log_System::LogLevel::value::FATAL) << std::endl;
     // std::cout << Log_System::LogLevel::toString(Log_System::LogLevel::value::OFF) << std::endl;
 
-    Log_System::LogMsg msg(Log_System::LogLevel::value::DEBUG, __FILE__, __LINE__, "root", "格式化字符串功能测试...");
+    // Log_System::LogMsg msg(Log_System::LogLevel::value::DEBUG, __FILE__, __LINE__, "root", "格式化字符串功能测试...");
     // Log_System::Formatter fmt("abc%%abc[%d{%H:%M:%S}] %m%n");
-    Log_System::Formatter fmt;
-    std::string str = fmt.format(msg);
+    // Log_System::Formatter fmt;
+    // std::string str = fmt.format(msg);
     // std::cout << str << std::endl;
 
     // Log_System::LogSink::ptr stdout_ptr = Log_System::SinkFactory::Create<Log_System::StdoutSink>();
@@ -113,14 +114,33 @@ int main()
     //     cur_size += tmp.size();
     // }
 
-    Log_System::LogSink::ptr time_ptr = Log_System::SinkFactory::Create<ROLLByTimeSink>("./logfile/roll-", TimeGap::GAP_SEC);
-    size_t old = Log_System::Util::Date::GetTime();
-    while (Log_System::Util::Date::GetTime() < old + 5)
+    // Log_System::LogSink::ptr time_ptr = Log_System::SinkFactory::Create<ROLLByTimeSink>("./logfile/roll-", TimeGap::GAP_SEC);
+    // size_t old = Log_System::Util::Date::GetTime();
+    // while (Log_System::Util::Date::GetTime() < old + 5)
+    // {
+    //     time_ptr->log(str.c_str(), str.size());
+    // }
+    std::string logger_name = "sync_logger";
+    Log_System::LogLevel::value limit = Log_System::LogLevel::value::WARN;
+    Log_System::Formatter::ptr fmt(new Log_System::Formatter("[%d{%H:%M:%S}][%c][%f:%l][%p]%T%m%n"));
+    Log_System::LogSink::ptr stdout_ptr = Log_System::SinkFactory::Create<Log_System::StdoutSink>();
+    Log_System::LogSink::ptr file_ptr = Log_System::SinkFactory::Create<Log_System::FileSink>("./logfile/test.log");
+    Log_System::LogSink::ptr roll_ptr = Log_System::SinkFactory::Create<Log_System::ROLLBySizeSink>("./logfile/roll-", 1024 * 1024);
+    std::vector<Log_System::LogSink::ptr> sinks{stdout_ptr, file_ptr, roll_ptr};
+    Log_System::Logger::ptr logger(new Log_System::SyncLogger(logger_name, limit, fmt, sinks));
+
+    logger->debug(__FILE__, __LINE__, "%s", "测试日志");
+    logger->info(__FILE__, __LINE__, "%s", "测试日志");
+    logger->warn(__FILE__, __LINE__, "%s", "测试日志");
+    logger->error(__FILE__, __LINE__, "%s", "测试日志");
+    logger->fatal(__FILE__, __LINE__, "%s", "测试日志");
+
+    size_t cursize=0,count=0;
+    while(cursize < 1024*1024*10)
     {
-        time_ptr->log(str.c_str(), str.size());
+        logger->fatal(__FILE__, __LINE__, "测试日志-%d",count++);
+        cursize+= 20;
     }
-    
-    
 
     return 0;
 }
