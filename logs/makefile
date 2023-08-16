@@ -4,4 +4,3 @@ test:test.cc util.hpp level.hpp message.hpp format.hpp sink.hpp logger.hpp
 .PHONY:clean
 clean:
 	rm -f test
-	rm -rf logfile

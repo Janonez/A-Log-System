@@ -3,7 +3,7 @@
 #include "format.hpp"
 #include "sink.hpp"
 #include "logger.hpp"
-
+#include "buffer.hpp"
 /*
 扩展一个以时间作为日志文件滚动切换类型的日志落地模块：
     以时间进行文件滚动，实际上是以时间段进行滚动
@@ -26,10 +26,18 @@ public:
     {
         switch (gaptype)
         {
-            case TimeGap::GAP_SEC : _gap_size = 1; break;
-            case TimeGap::GAP_MIN : _gap_size = 60; break;
-            case TimeGap::GAP_HOUR : _gap_size = 3600; break;
-            case TimeGap::GAP_DAY : _gap_size = 3600*24; break;
+        case TimeGap::GAP_SEC:
+            _gap_size = 1;
+            break;
+        case TimeGap::GAP_MIN:
+            _gap_size = 60;
+            break;
+        case TimeGap::GAP_HOUR:
+            _gap_size = 3600;
+            break;
+        case TimeGap::GAP_DAY:
+            _gap_size = 3600 * 24;
+            break;
         }
         // 判断创建的是第几个时间段
         // 特殊情况 任何数%1 都等于0，
@@ -41,7 +49,7 @@ public:
         _ofs.open(filename, std::ios::binary | std::ios::app);
         assert(_ofs.is_open());
     }
-    // 将日志消息写入到文件, 
+    // 将日志消息写入到文件,
     void log(const char *data, size_t len)
     {
         // 判断使用的时候是第几个时间段
@@ -76,8 +84,8 @@ private:
     // 通过基础文件名+扩展文件名（时间）生成一个实际的文件名
     std::string _basename;
     std::ofstream _ofs;
-    size_t _cur_gap;// 当前是第几个时间段
-    size_t _gap_size;// 每个时间段的大小
+    size_t _cur_gap;  // 当前是第几个时间段
+    size_t _gap_size; // 每个时间段的大小
 };
 
 int main()
@@ -120,27 +128,69 @@ int main()
     // {
     //     time_ptr->log(str.c_str(), str.size());
     // }
-    std::string logger_name = "sync_logger";
-    Log_System::LogLevel::value limit = Log_System::LogLevel::value::WARN;
-    Log_System::Formatter::ptr fmt(new Log_System::Formatter("[%d{%H:%M:%S}][%c][%f:%l][%p]%T%m%n"));
-    Log_System::LogSink::ptr stdout_ptr = Log_System::SinkFactory::Create<Log_System::StdoutSink>();
-    Log_System::LogSink::ptr file_ptr = Log_System::SinkFactory::Create<Log_System::FileSink>("./logfile/test.log");
-    Log_System::LogSink::ptr roll_ptr = Log_System::SinkFactory::Create<Log_System::ROLLBySizeSink>("./logfile/roll-", 1024 * 1024);
-    std::vector<Log_System::LogSink::ptr> sinks{stdout_ptr, file_ptr, roll_ptr};
-    Log_System::Logger::ptr logger(new Log_System::SyncLogger(logger_name, limit, fmt, sinks));
+    // std::string logger_name = "sync_logger";
+    // Log_System::LogLevel::value limit = Log_System::LogLevel::value::WARN;
+    // Log_System::Formatter::ptr fmt(new Log_System::Formatter("[%d{%H:%M:%S}][%c][%f:%l][%p]%T%m%n"));
+    // Log_System::LogSink::ptr stdout_ptr = Log_System::SinkFactory::Create<Log_System::StdoutSink>();
+    // Log_System::LogSink::ptr file_ptr = Log_System::SinkFactory::Create<Log_System::FileSink>("./logfile/test.log");
+    // Log_System::LogSink::ptr roll_ptr = Log_System::SinkFactory::Create<Log_System::ROLLBySizeSink>("./logfile/roll-", 1024 * 1024);
+    // std::vector<Log_System::LogSink::ptr> sinks{stdout_ptr, file_ptr, roll_ptr};
+    // Log_System::Logger::ptr logger(new Log_System::SyncLogger(logger_name, limit, fmt, sinks));
 
-    logger->debug(__FILE__, __LINE__, "%s", "测试日志");
-    logger->info(__FILE__, __LINE__, "%s", "测试日志");
-    logger->warn(__FILE__, __LINE__, "%s", "测试日志");
-    logger->error(__FILE__, __LINE__, "%s", "测试日志");
-    logger->fatal(__FILE__, __LINE__, "%s", "测试日志");
+    // std::unique_ptr<Log_System::LoggerBuilder> builder(new Log_System::LocalLoggerBuilder());
+    // builder->buildLoggerName("sync_logger");
+    // builder->buildLoggerType(Log_System::LoggerType::LOGGER_SYNC);
+    // builder->buildLoggerLevel(Log_System::LogLevel::value::WARN);
+    // builder->buildFormatter("[%d{%H:%M:%S}]%m%n");
+    // builder->buildLoggerSink<Log_System::FileSink>("./logfile/test.log");
+    // builder->buildLoggerSink<Log_System::StdoutSink>();
+    // Log_System::Logger::ptr logger = builder->build();
 
-    size_t cursize=0,count=0;
-    while(cursize < 1024*1024*10)
+    // logger->debug(__FILE__, __LINE__, "%s", "测试日志");
+    // logger->info(__FILE__, __LINE__, "%s", "测试日志");
+    // logger->warn(__FILE__, __LINE__, "%s", "测试日志");
+    // logger->error(__FILE__, __LINE__, "%s", "测试日志");
+    // logger->fatal(__FILE__, __LINE__, "%s", "测试日志");
+
+    // size_t cursize = 0, count = 0;
+    // while (cursize < 1024 * 1024 * 10)
+    // {
+    //     logger->fatal(__FILE__, __LINE__, "测试日志-%d", count++);
+    //     cursize += 20;
+    // }
+
+
+    // 读取文件数据，一点一点写入缓冲区，最终将缓冲区写入文件，判断新生成文件与源文件是否一致
+    std::ifstream ifs("./logfile/test.log", std::ios::binary);
+    if(!ifs.is_open())
     {
-        logger->fatal(__FILE__, __LINE__, "测试日志-%d",count++);
-        cursize+= 20;
+        std::cout << "open failed" << std::endl;
+        return -1;
     }
-
+    ifs.seekg(0, std::ios::end);// 将文件指针移到文件末尾
+    size_t fsize = ifs.tellg();// 当前位置相对于起始位置的偏移量，就是大小
+    ifs.seekg(0, std::ios::beg);// 重新跳转到起始位置
+    std::string body;
+    body.resize(fsize);
+    ifs.read(&body[0],fsize);
+    if(!ifs.good())
+    {
+        std::cout << "read failed" << std::endl;
+        return -1;
+    }
+    ifs.close();
+    Log_System::Buffer buffer;
+    for(int i = 0; i < body.size(); ++i)
+    {
+        buffer.Push(&body[i],1);
+    }
+    std::ofstream ofs("./logfile/tmp.log", std::ios::binary);
+    size_t rsize = buffer.ReadAbleSize();
+    for(int i = 0; i < rsize; ++i)
+    {
+        ofs.write(buffer.Begin(), 1);
+        buffer.MoveReader(1);
+    }
+    ofs.close();
     return 0;
 }
