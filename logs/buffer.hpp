@@ -6,9 +6,9 @@
 #include <cassert>
 namespace Log_System
 {
-#define DEFAULT_BUFFER_SIZE (1024 * 1024 * 100)
-#define THRESHOLD_BUFFER_SIZE (1024 * 1024 * 80)
-#define INCREMENT_BUFFER_SIZE (1024 * 1024 * 10)
+#define DEFAULT_BUFFER_SIZE (1024 * 1024 * 1)
+#define THRESHOLD_BUFFER_SIZE (1024 * 1024 * 8)
+#define INCREMENT_BUFFER_SIZE (1024 * 1024 * 1)
     class Buffer
     {
     public:
@@ -19,13 +19,11 @@ namespace Log_System
         // 向缓冲区写数据
         void Push(const char *data, size_t len)
         {
-            // 剩余空间不足 - 固定大小，直接返回  动态空间，扩容
-            // 固定
-            // if(len > WriteAbleSize()) return;
-            // 扩容
+            // 剩余空间不足 - 扩容
             ensureEnoughSize(len);
             // 1. 将数据拷贝到缓冲区
             std::copy(data, data + len, &_buffer[_writer_index]);
+
             // 2.将写入位置后移
             MoveWriter(len);
         }

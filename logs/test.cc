@@ -4,6 +4,7 @@
 #include "sink.hpp"
 #include "logger.hpp"
 #include "buffer.hpp"
+#include "looper.hpp"
 /*
 扩展一个以时间作为日志文件滚动切换类型的日志落地模块：
     以时间进行文件滚动，实际上是以时间段进行滚动
@@ -88,6 +89,22 @@ private:
     size_t _gap_size; // 每个时间段的大小
 };
 
+void test_log()
+{
+    Log_System::Logger::ptr logger = Log_System::LoggerManger::getInstance().getLogger("async_logger");
+    logger->debug(__FILE__, __LINE__, "%s", "测试日志");
+    logger->info(__FILE__, __LINE__, "%s", "测试日志");
+    logger->warn(__FILE__, __LINE__, "%s", "测试日志");
+    logger->error(__FILE__, __LINE__, "%s", "测试日志");
+    logger->fatal(__FILE__, __LINE__, "%s", "测试日志");
+
+    size_t count = 0;
+    while (count < 500000)
+    {
+        logger->fatal(__FILE__, __LINE__, "测试日志-%d", count++);
+    }
+}
+
 int main()
 {
     // std::cout << Log_System::Util::Date::GetTime() << std::endl;
@@ -138,11 +155,12 @@ int main()
     // Log_System::Logger::ptr logger(new Log_System::SyncLogger(logger_name, limit, fmt, sinks));
 
     // std::unique_ptr<Log_System::LoggerBuilder> builder(new Log_System::LocalLoggerBuilder());
-    // builder->buildLoggerName("sync_logger");
-    // builder->buildLoggerType(Log_System::LoggerType::LOGGER_SYNC);
+    // builder->buildLoggerName("async_logger");
+    // builder->buildLoggerType(Log_System::LoggerType::LOGGER_ASYNC);
     // builder->buildLoggerLevel(Log_System::LogLevel::value::WARN);
-    // builder->buildFormatter("[%d{%H:%M:%S}]%m%n");
-    // builder->buildLoggerSink<Log_System::FileSink>("./logfile/test.log");
+    // builder->buildFormatter("[%c]%m%n");
+    // // builder->buildEableUnSafeAsync();
+    // builder->buildLoggerSink<Log_System::FileSink>("./logfile/async.log");
     // builder->buildLoggerSink<Log_System::StdoutSink>();
     // Log_System::Logger::ptr logger = builder->build();
 
@@ -152,45 +170,59 @@ int main()
     // logger->error(__FILE__, __LINE__, "%s", "测试日志");
     // logger->fatal(__FILE__, __LINE__, "%s", "测试日志");
 
-    // size_t cursize = 0, count = 0;
-    // while (cursize < 1024 * 1024 * 10)
+    // size_t count = 0;
+    // while (count < 500000)
     // {
     //     logger->fatal(__FILE__, __LINE__, "测试日志-%d", count++);
-    //     cursize += 20;
     // }
 
 
     // 读取文件数据，一点一点写入缓冲区，最终将缓冲区写入文件，判断新生成文件与源文件是否一致
-    std::ifstream ifs("./logfile/test.log", std::ios::binary);
-    if(!ifs.is_open())
-    {
-        std::cout << "open failed" << std::endl;
-        return -1;
-    }
-    ifs.seekg(0, std::ios::end);// 将文件指针移到文件末尾
-    size_t fsize = ifs.tellg();// 当前位置相对于起始位置的偏移量，就是大小
-    ifs.seekg(0, std::ios::beg);// 重新跳转到起始位置
-    std::string body;
-    body.resize(fsize);
-    ifs.read(&body[0],fsize);
-    if(!ifs.good())
-    {
-        std::cout << "read failed" << std::endl;
-        return -1;
-    }
-    ifs.close();
-    Log_System::Buffer buffer;
-    for(int i = 0; i < body.size(); ++i)
-    {
-        buffer.Push(&body[i],1);
-    }
-    std::ofstream ofs("./logfile/tmp.log", std::ios::binary);
-    size_t rsize = buffer.ReadAbleSize();
-    for(int i = 0; i < rsize; ++i)
-    {
-        ofs.write(buffer.Begin(), 1);
-        buffer.MoveReader(1);
-    }
-    ofs.close();
+    // std::ifstream ifs("./logfile/sync.log", std::ios::binary);
+    // if(!ifs.is_open())
+    // {
+    //     std::cout << "open failed" << std::endl;
+    //     return -1;
+    // }
+    // ifs.seekg(0, std::ios::end);// 将文件指针移到文件末尾
+    // size_t fsize = ifs.tellg();// 当前位置相对于起始位置的偏移量，就是大小
+    // ifs.seekg(0, std::ios::beg);// 重新跳转到起始位置
+    // std::string body;
+    // body.resize(fsize);
+    // ifs.read(&body[0],fsize);
+    // if(!ifs.good())
+    // {
+    //     std::cout << "read failed" << std::endl;
+    //     return -1;
+    // }
+    // ifs.close();
+    // std::cout << "fsize:" << fsize << std::endl;
+    // Log_System::Buffer buffer;
+    // for(int i = 0; i < body.size(); ++i)
+    // {
+    //     buffer.Push(&body[i],1);
+    // }
+    // std::cout << "reablesize:" << buffer.ReadAbleSize() << std::endl;
+    // // buffer.Push(&body[0],body.size());
+    // std::ofstream ofs("./logfile/tmp.log", std::ios::binary);
+    // size_t rsize = buffer.ReadAbleSize();
+    // for(int i = 0; i < rsize; ++i)
+    // {
+    //     ofs.write(buffer.Begin(), 1);
+    //     buffer.MoveReader(1);
+    // }
+    // ofs.close();
+
+    std::unique_ptr<Log_System::LoggerBuilder> builder(new Log_System::GlobalLoggerBuilder());
+    builder->buildLoggerName("async_logger");
+    builder->buildLoggerType(Log_System::LoggerType::LOGGER_ASYNC);
+    builder->buildLoggerLevel(Log_System::LogLevel::value::WARN);
+    builder->buildFormatter("[%c]%m%n");
+    // builder->buildEableUnSafeAsync();
+    builder->buildLoggerSink<Log_System::FileSink>("./logfile/async.log");
+    builder->buildLoggerSink<Log_System::StdoutSink>();
+    builder->build();
+
+    test_log();
     return 0;
 }

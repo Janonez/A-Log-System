@@ -48,6 +48,7 @@ namespace Log_System
             Util::File::CreateDirectory(Util::File::Path(_pathname));
             // 2. 创建打开文件
             _ofs.open(_pathname, std::ios::binary | std::ios::app);
+
             assert(_ofs.is_open());
         }
         // 将日志消息写入到文件
