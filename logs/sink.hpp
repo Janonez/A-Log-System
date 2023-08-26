@@ -122,7 +122,7 @@ namespace Log_System
     class SinkFactory
     {
     public:
-        template <class SinkType, class... Args>
+        template <class SinkType, class... Args> // 不同落地方向 所需要的参数不同，采用可变参数包传入
         static LogSink::ptr Create(Args &&...args)
         {
             return std::make_shared<SinkType>(std::forward<Args>(args)...);

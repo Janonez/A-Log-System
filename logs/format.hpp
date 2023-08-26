@@ -21,7 +21,7 @@ namespace Log_System
         virtual void format(std::ostream &out, const LogMsg &msg) = 0;
     };
     // 派生格式化子项 子类 - 日期 缩进 线程id 日志级别 日志器名称 文件名 行号 日志消息 换行
-    // 消息
+    // 数据
     class MsgFormatItem : public FormatItem
     {
     public:
@@ -161,20 +161,20 @@ namespace Log_System
         {
             for (auto &item : _items)
             {
-                // 把std::vector<FormatItem::ptr> _items;中存放的其他字符和格式化字符打印
+                // 把std::vector<FormatItem::ptr> _items;中按顺序存放要格式化的消息
                 // msg是具体信息，按照格式流入out
-                item->format(out, msg);// 调用的是FormatItem的format，根据不同的item调用不同的format
+                item->format(out, msg); // 调用的是FormatItem的format，根据不同的格式调用不同子类的format
             }
         }
-    
+
         std::string format(const LogMsg &msg)
         {
             std::stringstream ss;
             // 把msg放入ss输入流中
-            format(ss, msg);// 调用的是Formatter中的 void format(std::ostream &out, const LogMsg &msg)
+            format(ss, msg); // 调用的是Formatter中的 void format(std::ostream &out, const LogMsg &msg)
             return ss.str();
         }
-        // 对格式化规则字符串解析
+        // 对格式化规则字符串解析，按顺序存放到_items中
         bool parsePattern()
         {
             // 1. 对格式化规则字符串进行解析
@@ -184,8 +184,7 @@ namespace Log_System
             std::string key, val;
             while (pos < _pattern.size())
             {
-                // 判断是否为%，不是的话就是其他字符，直接存入
-                
+                // 首先判断是否为%，不是的话就是其他字符，直接存入
                 if (_pattern[pos] != '%')
                 {
                     val.push_back(_pattern[pos++]);
@@ -199,16 +198,15 @@ namespace Log_System
                     pos += 2;
                     continue;
                 }
-                // 走到这里说明是格式化字符,可能是新的格式化字符，需要将前面的都添加到数组中
+                // 走到这里说明是格式化字符,可能是新的格式化字符，需要将前面的原始字符串都添加到数组中
                 if (!val.empty())
                 {
-                    fmt_order.push_back(std::make_pair(key, val)); // ?????
-                    key.clear();
+                    fmt_order.push_back(std::make_pair("", val));
                     val.clear();
                 }
                 // 处理好%之前的字符，开始处理%之后的格式化字符
-                pos += 1; // 这时pos指向‘格式化字符的位置
-                if (pos == _pattern.size())
+                pos += 1;                   // 这时pos指向‘格式化字符的位置
+                if (pos == _pattern.size()) // 判断是否合法
                 {
                     // %之后没有数据，说明输入字符串有问题，出错返回
                     std::cout << "%之后没有合适的格式化字符！" << std::endl;
@@ -234,14 +232,14 @@ namespace Log_System
                     // 不是上面的情况则是正常跳出循环
                     pos += 1;
                 }
-                fmt_order.push_back(std::make_pair(key, val)); 
+                fmt_order.push_back(std::make_pair(key, val));
                 key.clear();
                 val.clear();
             }
             // 2. 根据解析得到的数据初始化子项数组成员
-            for(auto &it : fmt_order)
+            for (auto &it : fmt_order)
             {
-                _items.push_back(createItem(it.first,it.second));
+                _items.push_back(createItem(it.first, it.second));
             }
             return true;
         }
@@ -268,7 +266,7 @@ namespace Log_System
                 return std::make_shared<MsgFormatItem>();
             if (key == "n")
                 return std::make_shared<NLineFormatItem>();
-            if(key.empty())
+            if (key.empty())
                 return std::make_shared<OtherFormatItem>(val);
             std::cout << "没有对应的格式化字符，%" << key << std::endl;
             abort();
@@ -276,8 +274,8 @@ namespace Log_System
         }
 
     private:
-        std::string _pattern; // 格式化规则字符串
-        std::vector<FormatItem::ptr> _items;
+        std::string _pattern;                // 格式化规则字符串
+        std::vector<FormatItem::ptr> _items; // 每个需要格式化的类型
     };
 }
 #endif

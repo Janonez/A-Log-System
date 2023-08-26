@@ -50,7 +50,7 @@ namespace Log_System
             {
                 // ./abc/a.txt
                 size_t pos = pathname.find_last_of("/\\");
-                if (pos == std::string::npos)
+                if (pos == std::string::npos) // 没有找到，属于当前路径
                 {
                     return ".";
                 }
@@ -73,13 +73,8 @@ namespace Log_System
                         // 没有找到目录，说明需要创建
                         mkdir(pathname.c_str(), 0777);
                     }
+                    // 创建过程是 ./ -> ./acb/ -> ./acb/bcd/
                     std::string parent_dir = pathname.substr(0, pos);
-                    // if (parent_dir == "." || parent_dir == "..")
-                    // {
-                    //     // 当前目录或上一级目录，就再往后寻找
-                    //     index = pos + 1;
-                    //     continue;
-                    // }
                     if (Exists(parent_dir) == true)
                     {
                         // 父级目录存在，就再往后寻找
