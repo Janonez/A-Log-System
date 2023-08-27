@@ -61,8 +61,8 @@ void sync_bench()
     builder->buildFormatter("%m%n");
     builder->buildLoggerSink<Log_System::FileSink>("./logfile/sync.log");
     builder->build();
-    //bench("sync_logger", 1, 1000000, 100);
-    bench("sync_logger", 3, 1000000, 100);
+    bench("sync_logger", 1, 1000000, 100);
+    // bench("sync_logger", 3, 1000000, 100);
 }
 void async_bench()
 {
@@ -73,13 +73,13 @@ void async_bench()
     builder->buildFormatter("%m%n");
     builder->buildLoggerSink<Log_System::FileSink>("./logfile/async.log");
     builder->build();
-    // bench("async_logger", 1, 1000000, 100);
-    bench("async_logger", 3, 1000000, 100);
+    bench("async_logger", 1, 1000000, 100);
+    // bench("async_logger", 3, 1000000, 100);
 }
 
 int main()
 {
-    // sync_bench();
+    sync_bench();
     async_bench();
     return 0;
 }

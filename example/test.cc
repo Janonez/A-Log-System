@@ -26,7 +26,7 @@ int main()
     builder->buildLoggerName("sync_logger");
     builder->buildLoggerType(Log_System::LoggerType::LOGGER_SYNC);
     builder->buildLoggerLevel(Log_System::LogLevel::value::DEBUG);
-    builder->buildFormatter("[%c][%f:%l]%m%n");
+    builder->buildFormatter("[%c][%f:%l][%p]%m%n");
     builder->buildLoggerSink<Log_System::FileSink>("./logfile/sync.log");
     builder->buildLoggerSink<Log_System::StdoutSink>();
     builder->buildLoggerSink<Log_System::ROLLBySizeSink>("./logfile/roll-sync-by-size", 1024 * 1024);
